@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Sistema - Flask</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <style>
+        :root {
+            --primary-color: #42b63e;
+            --secondary-color: #000000;
+            --background-color: #1a202c;
+            --card-background: #2d3748;
+            --text-color: #e2e8f0;
+            --border-radius: 12px;
+            --warning-color: #fbbf24;
+            --danger-color: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 1rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #a0aec0;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .metric-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+        }
+
+        .metric-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: white;
+        }
+
+        .metric-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 0.5rem 0;
+        }
+
+        .metric-subtitle {
+            color: #a0aec0;
+            font-size: 0.875rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .progress-value {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .progress-value.warning {
+            background: var(--warning-color);
+        }
+
+        .progress-value.danger {
+            background: var(--danger-color);
+        }
+
+        .device-info {
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            font-family: 'Courier New', monospace;
+        }
+
+        .device-info h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .device-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .device-info-item {
+            padding: 0.5rem;
+            background: rgba(30, 58, 138, 0.1);
+            border-radius: 4px;
+        }
+
+        .device-info-label {
+            color: #a0aec0;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .device-info-value {
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        #connection-status {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            background-color: #22c55e;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #connection-status.show {
+            opacity: 1;
+        }
+
+        #connection-status.error {
+            background-color: #ef4444;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.75rem;
+            }
+
+            .metric-card {
+                padding: 1rem;
+            }
+
+            .metric-value {
+                font-size: 1.75rem;
+            }
+
+            .device-info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+        }
+
+        .processes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .process-card {
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+        }
+
+        .process-name {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .process-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            color: #a0aec0;
+            font-size: 0.875rem;
+        }
+
+        .metric-details {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.875rem;
+            color: #a0aec0;
+        }
+    </style>
+    <style>
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            font-size: 0.875rem;
+            color: #a0aec0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Monitor de Sistema</h1>
+            <p>Monitoreo en tiempo real de recursos del sistema</p>
+        </header>
+
+        <!-- Métricas principales -->
+        <div class="section" id="metrics-section">
+            <div class="section-header">
+                <h2>Métricas del Sistema</h2>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked onchange="toggleSection('metrics-section')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="metrics-grid">
+                <!-- CPU Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                        </div>
+                        <h2 class="metric-title">CPU</h2>
+                    </div>
+                    <div class="metric-value" id="cpu-value">0%</div>
+                    <div class="metric-subtitle">Uso del procesador</div>
+                    <div class="progress-bar">
+                        <div class="progress-value" id="cpu-progress"></div>
+                    </div>
+                    <div class="metric-details" id="cpu-details">
+                        Procesador: ...
+                    </div>
+                </div>
+
+                <!-- RAM Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h2 class="metric-title">Memoria RAM</h2>
+                    </div>
+                    <div class="metric-value" id="memory-value">0%</div>
+                    <div class="metric-subtitle">Uso de memoria</div>
+                    <div class="progress-bar">
+                        <div class="progress-value" id="memory-progress"></div>
+                    </div>
+                    <div class="metric-details" id="memory-details">
+                        Capacidad total: ...
+                    </div>
+                </div>
+
+                <!-- Disk Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                            </svg>
+                        </div>
+                        <h2 class="metric-title">Disco</h2>
+                    </div>
+                    <div class="metric-value" id="disk-value">0%</div>
+                    <div class="metric-subtitle">Espacio utilizado</div>
+                    <div class="progress-bar">
+                        <div class="progress-value" id="disk-progress"></div>
+                    </div>
+                    <div class="metric-details" id="disk-details">
+                        Nombre: ...<br>
+                        Capacidad total: ...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Info Section -->
+        <div class="section" id="device-section">
+            <div class="section-header">
+                <h2>Info. de dispositivo</h2>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked onchange="toggleSection('device-section')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="device-info">
+                <div class="device-info-grid">
+                    <div class="device-info-item">
+                        <div class="device-info-label">Nombre de dispositivo</div>
+                        <div class="device-info-value" id="hostname">...</div>
+                    </div>
+                    <div class="device-info-item">
+                        <div class="device-info-label">Sistema operativo</div>
+                        <div class="device-info-value" id="os-info">...</div>
+                    </div>
+                    <div class="device-info-item">
+                        <div class="device-info-label">Tiempo activo</div>
+                        <div class="device-info-value" id="uptime">...</div>
+                    </div>
+                    <div class="device-info-item">
+                        <div class="device-info-label">Estado de energía</div>
+                        <div class="device-info-value" id="power-info">...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Info Section -->
+        <div class="section" id="network-section">
+            <div class="section-header">
+                <h2>Conexiones del dispositivo</h2>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked onchange="toggleSection('network-section')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="device-info">
+                <div class="device-info-grid">
+                    <div class="device-info-item">
+                        <div class="device-info-label">Dirección IP</div>
+                        <div class="device-info-value" id="ip-address">...</div>
+                    </div>
+                    <div class="device-info-item">
+                        <div class="device-info-label">Dirección MAC</div>
+                        <div class="device-info-value" id="mac-address">...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processes Section -->
+        <div class="section" id="processes-section">
+            <div class="section-header">
+                <h2>Procesos actuales</h2>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked onchange="toggleSection('processes-section')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="processes-grid" id="processes-grid">
+                <!-- Procesos se añadirán dinámicamente aquí -->
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Desarrollado por Rodolfo Casan</p>
+    </footer>
+
+    <div id="connection-status">Conectado</div>
+
+    <script>
+        let ws = null;
+        const statusElement = document.getElementById('connection-status');
+
+        function showStatus(message, isError = false) {
+            statusElement.textContent = message;
+            statusElement.classList.add('show');
+            if (isError) {
+                statusElement.classList.add('error');
+            } else {
+                statusElement.classList.remove('error');
+            }
+            setTimeout(() => statusElement.classList.remove('show'), 3000);
+        }
+
+        function updateProgressBarColor(element, value) {
+            element.classList.remove('warning', 'danger');
+            element.style.width = `${value}%`;
+
+            if (value >= 81) {
+                element.classList.add('danger');
+            } else if (value >= 70) {
+                element.classList.add('warning');
+            }
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const content = section.querySelector('.metrics-grid, .device-info, .processes-grid');
+            const checkbox = section.querySelector('input[type="checkbox"]');
+
+            if (content) {
+                if (checkbox.checked) {
+                    content.style.display = 'grid';  // o 'block' para .device-info
+                } else {
+                    content.style.display = 'none';
+                }
+            }
+        }
+
+        function initializeSections() {
+            const sections = ['metrics-section', 'device-section', 'network-section', 'processes-section'];
+            sections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                const content = section.querySelector('.metrics-grid, .device-info, .processes-grid');
+                const checkbox = section.querySelector('input[type="checkbox"]');
+
+                if (content) {
+                    // Establecer el display inicial basado en el estado del checkbox
+                    content.style.display = checkbox.checked ? (content.classList.contains('metrics-grid') || content.classList.contains('processes-grid') ? 'grid' : 'block') : 'none';
+                }
+            });
+        }
+
+        // Llamar a la función de inicialización cuando se carga la página
+        document.addEventListener('DOMContentLoaded', initializeSections);
+
+        function updateProcesses(processes) {
+            const grid = document.getElementById('processes-grid');
+            grid.innerHTML = ''; // Limpiar procesos anteriores
+
+            processes.forEach(proc => {
+                const card = document.createElement('div');
+                card.className = 'process-card';
+                card.innerHTML = `
+                    <div class="process-name">${proc.name}</div>
+                    <div class="process-details">
+                        <span>PID: ${proc.pid}</span>
+                        <span>CPU: ${proc.cpu_percent.toFixed(1)}%</span>
+                        <span>RAM: ${proc.memory_percent}%</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateMetrics(data) {
+            // Update CPU
+            document.getElementById('cpu-value').textContent = `${data.cpu_percent.toFixed(1)}%`;
+            document.getElementById('cpu-details').textContent = `Procesador: ${data.cpu_name}`;
+            updateProgressBarColor(document.getElementById('cpu-progress'), data.cpu_percent);
+
+            // Update Memory
+            document.getElementById('memory-value').textContent = `${data.memory_percent.toFixed(1)}%`;
+            document.getElementById('memory-details').textContent = `Capacidad total: ${data.memory_total}`;
+            updateProgressBarColor(document.getElementById('memory-progress'), data.memory_percent);
+
+            // Update Disk
+            document.getElementById('disk-value').textContent = `${data.disk_usage.toFixed(1)}%`;
+            document.getElementById('disk-details').innerHTML = `Nombre: ${data.disk_name}<br>Capacidad total: ${data.disk_total}`;
+            updateProgressBarColor(document.getElementById('disk-progress'), data.disk_usage);
+
+            // Update Device Info
+            document.getElementById('hostname').textContent = data.hostname;
+            document.getElementById('os-info').textContent = data.os_info;
+            document.getElementById('uptime').textContent = data.uptime;
+
+            // Update Power Info
+            const powerInfo = data.power_info;
+            let powerText = powerInfo.type;
+            if (powerInfo.type === 'Battery') {
+                powerText += ` - ${powerInfo.battery_percent} (${powerInfo.status})`;
+            }
+            document.getElementById('power-info').textContent = powerText;
+
+            // Update Network Info
+            document.getElementById('ip-address').textContent = data.network_info.ip;
+            document.getElementById('mac-address').textContent = data.network_info.mac;
+
+            // Update Processes
+            updateProcesses(data.top_processes);
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function () {
+                showStatus('Conectado');
+            };
+
+            ws.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                updateMetrics(data);
+            };
+
+            ws.onclose = function () {
+                showStatus('Desconectado - Reconectando...', true);
+                setTimeout(connectWebSocket, 1000);
+            };
+
+            ws.onerror = function () {
+                showStatus('Error de conexión', true);
+            };
+        }
+
+        // Iniciar conexión WebSocket
+        connectWebSocket();
+    </script>
+</body>
+
+</html>
